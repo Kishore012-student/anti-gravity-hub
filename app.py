@@ -1,16 +1,18 @@
-import eventlet
-eventlet.monkey_patch()
-
-from flask import Flask, render_template, jsonify, request
-import serial
-import serial.tools.list_ports
+# AetherControl Hub
+import os
 import threading
 import time
 import json
 import socket
 import qrcode
-import os
 import random
+from flask import Flask, render_template, jsonify, request
+
+try:
+    import serial
+    import serial.tools.list_ports
+except ImportError:
+    serial = None
 
 app = Flask(__name__)
 
