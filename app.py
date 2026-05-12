@@ -8,16 +8,19 @@ import csv
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request, send_file
 
+# Check if running on Vercel
+IS_VERCEL = "VERCEL" in os.environ
+
 try:
-    import serial
-    import serial.tools.list_ports
+    if not IS_VERCEL:
+        import serial
+        import serial.tools.list_ports
+    else:
+        serial = None
 except ImportError:
     serial = None
 
 app = Flask(__name__)
-
-# Check if running on Vercel
-IS_VERCEL = "VERCEL" in os.environ
 
 # Global state for the system
 system_data = {
@@ -31,7 +34,7 @@ system_data = {
     "system_healthy": 1,
     "power_flow": 0,
     "emergency_stop": 0,
-    "mock_mode": true  # This will now just mean 'Waiting for Hardware'
+    "mock_mode": True 
 }
 
 serial_port = None
@@ -39,12 +42,16 @@ serial_lock = threading.Lock()
 CSV_FILE = "aether_telemetry.csv"
 
 def init_csv():
-    if not os.path.exists(CSV_FILE):
-        with open(CSV_FILE, mode='w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow(["Timestamp", "Battery_V", "Solar_V", "Load_V", "Load_A", "Relay_State"])
+    try:
+        if not os.path.exists(CSV_FILE):
+            with open(CSV_FILE, mode='w', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(["Timestamp", "Battery_V", "Solar_V", "Load_V", "Load_A", "Relay_State"])
+    except:
+        pass
 
 def log_to_csv(data):
+    if IS_VERCEL: return
     try:
         with open(CSV_FILE, mode='a', newline='') as f:
             writer = csv.writer(f)
@@ -56,39 +63,27 @@ def log_to_csv(data):
                 data["load_current"],
                 data["relay"]
             ])
-    except Exception as e:
-        print(f"Log Error: {e}")
-
-def get_local_ip():
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-        s.close()
-        return ip
-    except Exception:
-        return "127.0.0.1"
+    except:
+        pass
 
 def init_serial():
     global serial_port
     if serial is None: return False
-    ports = serial.tools.list_ports.comports()
-    for port in ports:
-        if 'Arduino' in port.description or 'CH340' in port.description or 'USB' in port.description:
-            try:
+    try:
+        ports = serial.tools.list_ports.comports()
+        for port in ports:
+            if 'Arduino' in port.description or 'CH340' in port.description or 'USB' in port.description:
                 serial_port = serial.Serial(port.device, 9600, timeout=1)
                 system_data["mock_mode"] = False
                 return True
-            except Exception as e:
-                print(f"Failed to connect: {e}")
+    except:
+        pass
     return False
 
 def background_task():
     global system_data, serial_port
     while True:
         if system_data["mock_mode"]:
-            # No dummy data generation here. 
-            # Just wait and try to reconnect to hardware.
             if not IS_VERCEL:
                 init_serial()
             time.sleep(1)
@@ -103,10 +98,9 @@ def background_task():
                             if key in system_data:
                                 system_data[key] = data[key]
                         
-                        # Log to CSV every minute - LOCAL ONLY
                         if not IS_VERCEL and int(time.time()) % 60 == 0:
                             log_to_csv(system_data)
-            except Exception:
+            except:
                 system_data["mock_mode"] = True
             time.sleep(0.1)
 
@@ -133,17 +127,20 @@ def get_data():
 @app.route('/api/history')
 def get_history():
     history = []
-    if os.path.exists(CSV_FILE):
-        with open(CSV_FILE, mode='r') as f:
-            reader = csv.DictReader(f)
-            history = list(reader)[-20:] # Return last 20 rows for mobile view
+    try:
+        if not IS_VERCEL and os.path.exists(CSV_FILE):
+            with open(CSV_FILE, mode='r') as f:
+                reader = csv.DictReader(f)
+                history = list(reader)[-20:]
+    except:
+        pass
     return jsonify(history)
 
 @app.route('/download/logs')
 def download_logs():
-    if os.path.exists(CSV_FILE):
+    if not IS_VERCEL and os.path.exists(CSV_FILE):
         return send_file(CSV_FILE, as_attachment=True)
-    return "No logs found", 404
+    return "Logs only available when running on local hardware.", 403
 
 @app.route('/api/control', methods=['POST'])
 def control():
@@ -153,7 +150,6 @@ def control():
     
     if command == "RELAY_ON": system_data["relay"] = 1
     elif command == "RELAY_OFF": system_data["relay"] = 0
-    elif command == "SYS_ON": system_data["emergency_stop"] = 0
     elif command == "ESTOP":
         system_data["emergency_stop"] = 1
         system_data["relay"] = 0
@@ -164,7 +160,7 @@ def control():
         try:
             with serial_lock:
                 serial_port.write(f"{command}\n".encode('utf-8'))
-        except Exception:
+        except:
             pass
             
     return jsonify({"status": "success"})
