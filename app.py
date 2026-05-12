@@ -1,5 +1,8 @@
-import socket
 import os
+import threading
+import time
+import json
+import socket
 import random
 from flask import Flask, render_template, jsonify, request
 
@@ -44,73 +47,58 @@ def get_local_ip():
 
 def init_serial():
     global serial_port
+    if serial is None: return False
     ports = serial.tools.list_ports.comports()
     for port in ports:
         if 'Arduino' in port.description or 'CH340' in port.description or 'USB' in port.description:
             try:
                 serial_port = serial.Serial(port.device, 9600, timeout=1)
                 system_data["mock_mode"] = False
-                print(f"Connected to Arduino on {port.device}")
                 return True
             except Exception as e:
-                print(f"Failed to connect to {port.device}: {e}")
+                print(f"Failed to connect: {e}")
     return False
 
 def background_task():
     global system_data, serial_port
     while True:
         if system_data["mock_mode"]:
-            # Periodically try to find the hardware
             if not IS_VERCEL:
-                if init_serial():
-                    print("Hardware detected! Switching to Live Mode.")
+                init_serial()
             
-            # Generate realistic mock data (existing logic...)
+            # Simulation Logic
             if system_data["emergency_stop"] == 0:
                 system_data["solar_voltage"] = round(random.uniform(14.0, 18.5), 1)
-                
-                # Simulate battery drain or charge based on relay and solar
                 if system_data["relay"] == 1:
-                    system_data["voltage"] = max(10.5, system_data["voltage"] - random.uniform(0.01, 0.05))
+                    system_data["voltage"] = max(10.5, system_data["voltage"] - 0.02)
                     system_data["load_voltage"] = round(system_data["voltage"] - 0.2, 1)
                     system_data["load_current"] = round(random.uniform(0.5, 2.5), 2)
-                    system_data["power_flow"] = -1 # Discharging
+                    system_data["power_flow"] = -1
                 else:
                     system_data["load_voltage"] = 0.0
                     system_data["load_current"] = 0.0
                     if system_data["solar_voltage"] > 14.0:
-                        system_data["voltage"] = min(13.8, system_data["voltage"] + random.uniform(0.01, 0.05))
-                        system_data["power_flow"] = 1 # Charging
+                        system_data["voltage"] = min(13.8, system_data["voltage"] + 0.02)
+                        system_data["power_flow"] = 1
                     else:
-                        system_data["power_flow"] = 0 # Idle
+                        system_data["power_flow"] = 0
                 
-                # Calculate percentage (approximate lead-acid curve)
                 pct = ((system_data["voltage"] - 11.0) / (13.5 - 11.0)) * 100
                 system_data["battery_pct"] = max(0, min(100, int(pct)))
-                
-                # Health check
-                if system_data["voltage"] < 11.5:
-                    system_data["system_healthy"] = 0
-                else:
-                    system_data["system_healthy"] = 1
+                system_data["system_healthy"] = 1 if system_data["voltage"] > 11.5 else 0
             time.sleep(1)
         else:
-            # Read from real serial port
             try:
                 if serial_port and serial_port.in_waiting > 0:
                     with serial_lock:
                         line = serial_port.readline().decode('utf-8').strip()
                     if line.startswith('{') and line.endswith('}'):
-                        try:
-                            data = json.loads(line)
-                            for key in data:
-                                if key in system_data:
-                                    system_data[key] = data[key]
-                        except json.JSONDecodeError:
-                            pass
-            except Exception as e:
-                print(f"Serial read error: {e}")
-                system_data["mock_mode"] = True # Fallback to mock mode if connection lost
+                        data = json.loads(line)
+                        for key in data:
+                            if key in system_data:
+                                system_data[key] = data[key]
+            except Exception:
+                system_data["mock_mode"] = True
             time.sleep(0.1)
 
 @app.route('/')
@@ -139,62 +127,28 @@ def control():
     content = request.json
     command = content.get('command')
     
-    # Handle the command locally in state
-    if command == "RELAY_ON":
-        system_data["relay"] = 1
-    elif command == "RELAY_OFF":
-        system_data["relay"] = 0
-    elif command == "SYS_ON":
-        system_data["emergency_stop"] = 0
+    if command == "RELAY_ON": system_data["relay"] = 1
+    elif command == "RELAY_OFF": system_data["relay"] = 0
+    elif command == "SYS_ON": system_data["emergency_stop"] = 0
     elif command == "ESTOP":
         system_data["emergency_stop"] = 1
-        system_data["relay"] = 0 # Force relay off
-        system_data["power_flow"] = 0
-    elif command == "LED_ON":
-        system_data["led"] = 1
-    elif command == "LED_OFF":
-        system_data["led"] = 0
+        system_data["relay"] = 0
+    elif command == "LED_ON": system_data["led"] = 1
+    elif command == "LED_OFF": system_data["led"] = 0
         
-    # Send command to Arduino if connected
     if not system_data["mock_mode"] and serial_port:
         try:
             with serial_lock:
-                # Send simple commands terminated by newline
                 serial_port.write(f"{command}\n".encode('utf-8'))
-        except Exception as e:
-            print(f"Failed to send command to Arduino: {e}")
+        except Exception:
+            pass
             
-    return jsonify({"status": "success", "command": command})
+    return jsonify({"status": "success"})
 
 if __name__ == '__main__':
-    # Initialize hardware connection (Only if NOT on Vercel)
     if not IS_VERCEL:
         init_serial()
-        
-        # Start background data loop
         thread = threading.Thread(target=background_task)
         thread.daemon = True
         thread.start()
-        
-        # Network setup info for terminal
-        port = 5000
-        local_ip = get_local_ip()
-        
-        print(f"*" * 50)
-        print(f"* Anti-Gravity Hub Running!")
-        print(f"* Local access: http://127.0.0.1:{port}")
-        print(f"* Network access: http://{local_ip}:{port}")
-        print(f"*" * 50)
-        
-        # Run the server on all interfaces so mobile can connect
-        app.run(host='0.0.0.0', port=port, debug=False)
-    else:
-        # Vercel handles the run, but we need to ensure some state is initialized
-        pass
-else:
-    # This block runs when imported by Vercel's serverless handler
-    if not IS_VERCEL: # Fallback if env var isn't set but it is being imported
-        pass
-    # For Vercel, we can't run a background thread easily, 
-    # so it will default to the initial system_data values.
-    pass
+        app.run(host='0.0.0.0', port=5000, debug=False)
