@@ -1,10 +1,8 @@
-import os
-import threading
-import time
-import json
 import socket
 import random
-from flask import Flask, render_template, jsonify, request
+import csv
+from datetime import datetime
+from flask import Flask, render_template, jsonify, request, send_file
 
 try:
     import serial
@@ -34,6 +32,28 @@ system_data = {
 
 serial_port = None
 serial_lock = threading.Lock()
+CSV_FILE = "aether_telemetry.csv"
+
+def init_csv():
+    if not os.path.exists(CSV_FILE):
+        with open(CSV_FILE, mode='w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(["Timestamp", "Battery_V", "Solar_V", "Load_V", "Load_A", "Relay_State"])
+
+def log_to_csv(data):
+    try:
+        with open(CSV_FILE, mode='a', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                data["voltage"],
+                data["solar_voltage"],
+                data["load_voltage"],
+                data["load_current"],
+                data["relay"]
+            ])
+    except Exception as e:
+        print(f"Log Error: {e}")
 
 def get_local_ip():
     try:
@@ -86,6 +106,11 @@ def background_task():
                 pct = ((system_data["voltage"] - 11.0) / (13.5 - 11.0)) * 100
                 system_data["battery_pct"] = max(0, min(100, int(pct)))
                 system_data["system_healthy"] = 1 if system_data["voltage"] > 11.5 else 0
+                
+                # Log to CSV every minute (approximately 60 iterations)
+                if int(time.time()) % 60 == 0:
+                    log_to_csv(system_data)
+                    
             time.sleep(1)
         else:
             try:
@@ -97,6 +122,10 @@ def background_task():
                         for key in data:
                             if key in system_data:
                                 system_data[key] = data[key]
+                        
+                        # Log to CSV every minute
+                        if int(time.time()) % 60 == 0:
+                            log_to_csv(system_data)
             except Exception:
                 system_data["mock_mode"] = True
             time.sleep(0.1)
@@ -120,6 +149,21 @@ def logo():
 @app.route('/api/data')
 def get_data():
     return jsonify(system_data)
+
+@app.route('/api/history')
+def get_history():
+    history = []
+    if os.path.exists(CSV_FILE):
+        with open(CSV_FILE, mode='r') as f:
+            reader = csv.DictReader(f)
+            history = list(reader)[-20:] # Return last 20 rows for mobile view
+    return jsonify(history)
+
+@app.route('/download/logs')
+def download_logs():
+    if os.path.exists(CSV_FILE):
+        return send_file(CSV_FILE, as_attachment=True)
+    return "No logs found", 404
 
 @app.route('/api/control', methods=['POST'])
 def control():
@@ -146,6 +190,7 @@ def control():
     return jsonify({"status": "success"})
 
 if __name__ == '__main__':
+    init_csv()
     if not IS_VERCEL:
         init_serial()
         thread = threading.Thread(target=background_task)
