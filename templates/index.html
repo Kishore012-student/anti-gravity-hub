@@ -26,18 +26,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Splash Screen -->
-    <div id="splashScreen" class="splash-screen d-flex flex-column justify-content-center align-items-center">
-        <div class="splash-bg-blur"></div>
-        <img src="/logo.png" alt="AetherControl Logo" class="splash-logo mb-4">
-        <h1 class="fw-bold tracking-wide text-white tracking-in-expand">AETHER<span class="text-primary">CONTROL</span></h1>
-        <p class="text-muted mt-2 text-uppercase fs-8 tracking-wide opacity-75">Initializing Anti-Gravity System</p>
-        
-        <div class="splash-progress-container">
-            <div class="splash-progress-bar"></div>
-        </div>
-    </div>
-
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark-glass fixed-top border-bottom border-secondary">
         <div class="container-fluid px-4">
@@ -328,17 +316,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     <script>
-        // Splash Screen Logic
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const splash = document.getElementById('splashScreen');
-                splash.style.opacity = '0';
-                setTimeout(() => {
-                    splash.style.display = 'none';
-                }, 800); // fade out duration
-            }, 3000); // splash screen show time (extended for cinematic effect)
-        });
-
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
