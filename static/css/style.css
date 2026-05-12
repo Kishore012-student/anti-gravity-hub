@@ -137,10 +137,31 @@ body {
 }
 
 .splash-logo {
-    width: 120px;
-    height: 120px;
+    width: 150px;
+    height: 150px;
     object-fit: contain;
-    filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.5));
+    filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.6));
+    animation: splashPulse 2s infinite ease-in-out, splashRotate 10s infinite linear;
+}
+
+.tracking-in-expand {
+	animation: tracking-in-expand 0.7s cubic-bezier(0.215, 0.610, 0.355, 1.000) both;
+}
+
+@keyframes splashPulse {
+    0%, 100% { transform: scale(1); filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.6)); }
+    50% { transform: scale(1.05); filter: drop-shadow(0 0 35px rgba(59, 130, 246, 0.8)); }
+}
+
+@keyframes splashRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes tracking-in-expand {
+  0% { letter-spacing: -0.5em; opacity: 0; }
+  40% { opacity: 0.6; }
+  100% { opacity: 1; }
 }
 
 /* Ultra Responsive Adjustments */
