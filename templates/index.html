@@ -264,6 +264,36 @@
             </div>
         </div>
 
+        <!-- System Log Row -->
+        <div class="row g-4 mb-5">
+            <div class="col-12">
+                <div class="card border-0 shadow-lg">
+                    <div class="card-header bg-transparent border-bottom border-secondary py-3">
+                        <h5 class="mb-0 fw-bold"><i class="fa-solid fa-list-ul text-primary me-2"></i>Live System Event Log</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="systemLog" class="bg-dark p-3 fs-7 font-monospace text-success overflow-auto" style="height: 150px;">
+                            <div>[SYSTEM] AetherControl Hub initialized...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="statusToast" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    Command sent successfully.
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
     </div>
 
     <!-- QR Code Modal -->

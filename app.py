@@ -78,10 +78,15 @@ def init_serial():
     return False
 
 def background_task():
-    global system_data
+    global system_data, serial_port
     while True:
         if system_data["mock_mode"]:
-            # Generate realistic mock data
+            # Periodically try to find the hardware
+            if not IS_VERCEL:
+                if init_serial():
+                    print("Hardware detected! Switching to Live Mode.")
+            
+            # Generate realistic mock data (existing logic...)
             if system_data["emergency_stop"] == 0:
                 system_data["solar_voltage"] = round(random.uniform(14.0, 18.5), 1)
                 

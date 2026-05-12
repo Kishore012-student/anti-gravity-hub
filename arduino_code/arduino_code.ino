@@ -1,5 +1,6 @@
-// Anti-Gravity IoT Hub - Arduino Code
-// This code communicates via Serial to the Python Flask backend.
+// AetherControl - Anti-Gravity IoT Hub
+// Professional IoT Monitoring & Control System
+// --------------------------------------------------
 
 #include <ArduinoJson.h>
 
@@ -39,10 +40,14 @@ void setup() {
 }
 
 void loop() {
-  // 1. Read Commands from Python
+  // 1. Check for incoming Serial commands from Laptop/Mobile
   if (Serial.available() > 0) {
+    // Read the command until newline
     String command = Serial.readStringUntil('\n');
     command.trim();
+    
+    // Log receipt for debugging (optional)
+    // Serial.print("REC:"); Serial.println(command); 
     
     if (command == "RELAY_ON") {
       relayState = 1;
@@ -76,23 +81,32 @@ void loop() {
   if (millis() - lastSendTime >= sendInterval) {
     lastSendTime = millis();
     
-    // Read voltages (adjust multipliers for your specific resistors)
+    /* 
+       VOLTAGE CALIBRATION:
+       Multiplier = (R1 + R2) / R2
+       Example: R1=10k, R2=2k -> Multiplier = 12k / 2k = 6.0
+       Adjust the numbers below to match your actual resistors.
+    */
     int batRaw = analogRead(BATT_VOLT_PIN);
-    batteryVoltage = batRaw * (5.0 / 1023.0) * 3.0; // Example 1:3 divider
+    batteryVoltage = (batRaw * 5.0 / 1023.0) * 6.0; // Optimized for 30V max range
     
     int solRaw = analogRead(SOLAR_VOLT_PIN);
-    solarVoltage = solRaw * (5.0 / 1023.0) * 4.0; // Example 1:4 divider
+    solarVoltage = (solRaw * 5.0 / 1023.0) * 6.0;
 
     int loadVRaw = analogRead(LOAD_VOLT_PIN);
-    loadVoltage = loadVRaw * (5.0 / 1023.0) * 3.0;
+    loadVoltage = (loadVRaw * 5.0 / 1023.0) * 6.0;
 
+    /*
+       CURRENT CALIBRATION:
+       Assumes ACS712-05B (Sensitivity: 185mV/A, Offset: 2.5V)
+    */
     int loadIRaw = analogRead(LOAD_CURR_PIN);
-    loadCurrent = (loadIRaw * (5.0 / 1023.0) - 2.5) / 0.185; // Example for ACS712-05B
-    if (loadCurrent < 0) loadCurrent = 0;
+    float vOut = loadIRaw * 5.0 / 1023.0;
+    loadCurrent = (vOut - 2.5) / 0.185; 
+    if (loadCurrent < 0.05) loadCurrent = 0; // Filter noise
     
-    // (Removed demo data overriding to ensure you only see true hardware values)
-    // Calculate battery percentage (11V to 13.5V range for lead acid)
-    float pct = ((batteryVoltage - 11.0) / (13.5 - 11.0)) * 100.0;
+    // Calculate battery percentage (11V to 13.5V range)
+    float pct = ((batteryVoltage - 11.0) / (2.5)) * 100.0;
     batteryPct = constrain((int)pct, 0, 100);
     
     if (batteryVoltage < 11.5 && systemHealthy == 1) {

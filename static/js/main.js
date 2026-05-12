@@ -81,8 +81,28 @@ const els = {
     alertContainer: document.getElementById('alertContainer'),
     modeBadge: document.getElementById('modeBadge'),
     connectionBadge: document.getElementById('connectionBadge'),
-    networkUrl: document.getElementById('networkUrl')
+    networkUrl: document.getElementById('networkUrl'),
+    systemLog: document.getElementById('systemLog'),
+    statusToast: new bootstrap.Toast(document.getElementById('statusToast'))
 };
+
+function logEvent(message, type = 'info') {
+    const div = document.createElement('div');
+    const now = new Date().toLocaleTimeString();
+    div.innerHTML = `<span class="text-muted">[${now}]</span> <span class="text-${type}">${message}</span>`;
+    els.systemLog.prepend(div);
+    // Keep only last 50 logs
+    if (els.systemLog.children.length > 50) {
+        els.systemLog.lastChild.remove();
+    }
+}
+
+function showToast(message, color = 'bg-primary') {
+    const toastEl = document.getElementById('statusToast');
+    toastEl.className = `toast align-items-center text-white ${color} border-0`;
+    toastEl.querySelector('.toast-body').textContent = message;
+    els.statusToast.show();
+}
 
 // Set network URL in modal
 els.networkUrl.textContent = window.location.href;
@@ -196,17 +216,26 @@ function updateChart(voltage) {
 
 // Send Command
 async function sendCommand(command) {
+    logEvent(`Sending command: ${command}...`, 'primary');
     try {
-        await fetch('/api/control', {
+        const response = await fetch('/api/control', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ command: command })
         });
+        
+        if (response.ok) {
+            logEvent(`Hardware response: OK (${command})`, 'success');
+            showToast(`Command ${command} confirmed.`, 'bg-success');
+        }
+        
         // Fetch immediately after sending to reflect changes faster
         fetchData();
     } catch (error) {
+        logEvent(`Failed to send command: ${command}`, 'danger');
+        showToast(`Command failed!`, 'bg-danger');
         console.error('Error sending command:', error);
     }
 }
