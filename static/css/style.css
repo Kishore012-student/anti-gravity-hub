@@ -133,7 +133,16 @@ body {
     height: 100vh;
     background-color: var(--bg-dark);
     z-index: 9999;
-    transition: opacity 0.5s ease-out;
+    transition: opacity 0.8s ease-out;
+}
+
+.splash-bg-blur {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+    filter: blur(50px);
+    z-index: -1;
 }
 
 .splash-logo {

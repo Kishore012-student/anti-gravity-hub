@@ -144,6 +144,14 @@ def index():
 def sw():
     return app.send_static_file('../sw.js')
 
+@app.route('/manifest.json')
+def manifest():
+    return app.send_static_file('manifest.json')
+
+@app.route('/logo.png')
+def logo():
+    return app.send_static_file('img/logo.png')
+
 @app.route('/api/data')
 def get_data():
     return jsonify(system_data)
