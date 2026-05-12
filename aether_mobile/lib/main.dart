@@ -188,10 +188,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(isMock ? Icons.science : Icons.memory, size: 16, color: isMock ? Colors.orange : Colors.blue),
+          Icon(isMock ? Icons.hourglass_empty : Icons.memory, size: 16, color: isMock ? Colors.orange : Colors.blue),
           const SizedBox(width: 8),
           Text(
-            isMock ? "SIMULATION MODE" : "HARDWARE ACTIVE",
+            isMock ? "SEARCHING FOR HARDWARE..." : "HARDWARE ACTIVE",
             style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isMock ? Colors.orange : Colors.blue),
           ),
         ],

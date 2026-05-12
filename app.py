@@ -27,7 +27,7 @@ system_data = {
     "system_healthy": 1,
     "power_flow": 0,
     "emergency_stop": 0,
-    "mock_mode": True 
+    "mock_mode": true  # This will now just mean 'Waiting for Hardware'
 }
 
 serial_port = None
@@ -83,34 +83,10 @@ def background_task():
     global system_data, serial_port
     while True:
         if system_data["mock_mode"]:
+            # No dummy data generation here. 
+            # Just wait and try to reconnect to hardware.
             if not IS_VERCEL:
                 init_serial()
-            
-            # Simulation Logic
-            if system_data["emergency_stop"] == 0:
-                system_data["solar_voltage"] = round(random.uniform(14.0, 18.5), 1)
-                if system_data["relay"] == 1:
-                    system_data["voltage"] = max(10.5, system_data["voltage"] - 0.02)
-                    system_data["load_voltage"] = round(system_data["voltage"] - 0.2, 1)
-                    system_data["load_current"] = round(random.uniform(0.5, 2.5), 2)
-                    system_data["power_flow"] = -1
-                else:
-                    system_data["load_voltage"] = 0.0
-                    system_data["load_current"] = 0.0
-                    if system_data["solar_voltage"] > 14.0:
-                        system_data["voltage"] = min(13.8, system_data["voltage"] + 0.02)
-                        system_data["power_flow"] = 1
-                    else:
-                        system_data["power_flow"] = 0
-                
-                pct = ((system_data["voltage"] - 11.0) / (13.5 - 11.0)) * 100
-                system_data["battery_pct"] = max(0, min(100, int(pct)))
-                system_data["system_healthy"] = 1 if system_data["voltage"] > 11.5 else 0
-                
-                # Log to CSV every minute (approximately 60 iterations)
-                if int(time.time()) % 60 == 0:
-                    log_to_csv(system_data)
-                    
             time.sleep(1)
         else:
             try:

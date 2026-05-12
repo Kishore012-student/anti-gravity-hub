@@ -153,9 +153,9 @@ function updateUI(data) {
     // Mode Badge
     if (data.mock_mode) {
         els.modeBadge.className = 'badge rounded-pill bg-warning text-dark';
-        els.modeBadge.innerHTML = '<i class="fa-solid fa-vial me-1"></i> Simulation Mode';
+        els.modeBadge.innerHTML = '<i class="fa-solid fa-hourglass-start me-1 pulse-icon"></i> Searching for Hardware...';
     } else {
-        els.modeBadge.className = 'badge rounded-pill bg-primary';
+        els.modeBadge.className = 'badge rounded-pill bg-primary pulse-bg';
         els.modeBadge.innerHTML = '<i class="fa-solid fa-microchip me-1"></i> Hardware Active';
     }
 
