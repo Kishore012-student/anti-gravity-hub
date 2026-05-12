@@ -104,8 +104,18 @@ function showToast(message, color = 'bg-primary') {
     els.statusToast.show();
 }
 
-// Set network URL in modal
-els.networkUrl.textContent = window.location.href;
+// Set network URL and Generate QR
+const currentUrl = window.location.origin;
+els.networkUrl.textContent = currentUrl;
+
+new QRCode(document.getElementById("qrcode"), {
+    text: currentUrl,
+    width: 200,
+    height: 200,
+    colorDark : "#000000",
+    colorLight : "#ffffff",
+    correctLevel : QRCode.CorrectLevel.H
+});
 
 // Control Flags to prevent infinite loops when updating switches
 let isUpdatingUI = false;

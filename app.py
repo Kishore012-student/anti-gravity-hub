@@ -1,10 +1,5 @@
-# AetherControl Hub
-import os
-import threading
-import time
-import json
 import socket
-import qrcode
+import os
 import random
 from flask import Flask, render_template, jsonify, request
 
@@ -36,24 +31,6 @@ system_data = {
 
 serial_port = None
 serial_lock = threading.Lock()
-
-def generate_qr_code(ip_address, port):
-    url = f"http://{ip_address}:{port}"
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(url)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    
-    img_dir = os.path.join(app.root_path, 'static', 'img')
-    os.makedirs(img_dir, exist_ok=True)
-    img_path = os.path.join(img_dir, 'qr.png')
-    img.save(img_path)
-    return img_path
 
 def get_local_ip():
     try:
@@ -199,16 +176,14 @@ if __name__ == '__main__':
         thread.daemon = True
         thread.start()
         
-        # Network setup
+        # Network setup info for terminal
         port = 5000
         local_ip = get_local_ip()
-        generate_qr_code(local_ip, port)
         
         print(f"*" * 50)
         print(f"* Anti-Gravity Hub Running!")
         print(f"* Local access: http://127.0.0.1:{port}")
         print(f"* Network access: http://{local_ip}:{port}")
-        print(f"* QR code generated at static/img/qr.png")
         print(f"*" * 50)
         
         # Run the server on all interfaces so mobile can connect
