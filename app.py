@@ -119,7 +119,7 @@ def index():
 
 @app.route('/sw.js')
 def sw():
-    return app.send_static_file('../sw.js')
+    return app.send_static_file('js/sw.js')
 
 @app.route('/manifest.json')
 def manifest():
