@@ -104,17 +104,21 @@ function showToast(message, color = 'bg-primary') {
     els.statusToast.show();
 }
 
-// Set network URL and Generate QR
-const currentUrl = window.location.origin;
-els.networkUrl.textContent = currentUrl;
-
-new QRCode(document.getElementById("qrcode"), {
-    text: currentUrl,
-    width: 200,
-    height: 200,
-    colorDark : "#000000",
-    colorLight : "#ffffff",
-    correctLevel : QRCode.CorrectLevel.H
+// Generate QR Code when Modal Opens
+document.getElementById('qrModal').addEventListener('shown.bs.modal', function () {
+    const qrcodeContainer = document.getElementById("qrcode");
+    qrcodeContainer.innerHTML = ""; // Clear old one
+    
+    new QRCode(qrcodeContainer, {
+        text: window.location.origin,
+        width: 250,
+        height: 250,
+        colorDark : "#000000",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.H
+    });
+    
+    els.networkUrl.textContent = window.location.origin;
 });
 
 // Control Flags to prevent infinite loops when updating switches
