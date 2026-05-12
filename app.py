@@ -103,8 +103,8 @@ def background_task():
                             if key in system_data:
                                 system_data[key] = data[key]
                         
-                        # Log to CSV every minute
-                        if int(time.time()) % 60 == 0:
+                        # Log to CSV every minute - LOCAL ONLY
+                        if not IS_VERCEL and int(time.time()) % 60 == 0:
                             log_to_csv(system_data)
             except Exception:
                 system_data["mock_mode"] = True
@@ -170,8 +170,8 @@ def control():
     return jsonify({"status": "success"})
 
 if __name__ == '__main__':
-    init_csv()
     if not IS_VERCEL:
+        init_csv()
         init_serial()
         thread = threading.Thread(target=background_task)
         thread.daemon = True
