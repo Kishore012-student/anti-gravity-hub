@@ -1,137 +1,89 @@
-// AetherControl - Anti-Gravity IoT Hub
-// Professional IoT Monitoring & Control System
-// --------------------------------------------------
+#include <Wire.h>
+#include <SPI.h>
 
-#include <ArduinoJson.h>
+const int solarPin = A0;
+const int fuelCellPin = A1;
+const int batteryPin = A2;
 
-// --- Pin Definitions (Based on Schematic) ---
-const int RELAY_PIN = 7;
-const int LED_MAIN_PIN = 13;
-const int LED_PINS[] = {2, 3, 4, 5, 6}; // LED Driver Logic pins
+const int relayPin = 7;
 
-const int SOLAR_VOLT_PIN = A0;
-const int BATT_VOLT_PIN = A1;
-const int LOAD_VOLT_PIN = A2;
-const int LOAD_CURR_PIN = A3;
-
-// --- Variables ---
-float batteryVoltage = 0.0;
 float solarVoltage = 0.0;
-float loadVoltage = 0.0;
-float loadCurrent = 0.0;
-int batteryPct = 100;
-int relayState = 0;
-int ledState = 0;
-int systemHealthy = 1;
+float fuelVoltage = 0.0;
+float batteryVoltage = 0.0;
 
-// Timing
-unsigned long lastSendTime = 0;
-const unsigned long sendInterval = 1000; // Send data every 1 second
+float calibrationFactor = 5.0;
 
-void setup() {
+float batteryLow = 11.0;
+float batteryHigh = 13.5;
+
+void setup()
+{
   Serial.begin(9600);
-  
-  pinMode(RELAY_PIN, OUTPUT);
-  pinMode(LED_MAIN_PIN, OUTPUT);
-  for(int i=0; i<5; i++) pinMode(LED_PINS[i], OUTPUT);
-  
-  digitalWrite(RELAY_PIN, LOW);
-  digitalWrite(LED_MAIN_PIN, LOW);
+  pinMode(relayPin, OUTPUT);
+  digitalWrite(relayPin, LOW);
+
+  Serial.println("AETHERCONTROL: POWER GENERATION SYSTEM");
+  Serial.println("SOLAR + SALT WATER ENERGY ACTIVE");
 }
 
-void loop() {
-  // 1. Check for incoming Serial commands from Laptop/Mobile
-  if (Serial.available() > 0) {
-    // Read the command until newline
-    String command = Serial.readStringUntil('\n');
-    command.trim();
-    
-    // Log receipt for debugging (optional)
-    // Serial.print("REC:"); Serial.println(command); 
-    
-    if (command == "RELAY_ON") {
-      relayState = 1;
-      digitalWrite(RELAY_PIN, HIGH);
-    } 
-    else if (command == "RELAY_OFF") {
-      relayState = 0;
-      digitalWrite(RELAY_PIN, LOW);
-    }
-    else if (command == "LED_ON") {
-      ledState = 1;
-      digitalWrite(LED_MAIN_PIN, HIGH);
-      for(int i=0; i<5; i++) digitalWrite(LED_PINS[i], HIGH);
-    }
-    else if (command == "LED_OFF") {
-      ledState = 0;
-      digitalWrite(LED_MAIN_PIN, LOW);
-      for(int i=0; i<5; i++) digitalWrite(LED_PINS[i], LOW);
-    }
-    else if (command == "ESTOP") {
-      relayState = 0;
-      digitalWrite(RELAY_PIN, LOW);
-      systemHealthy = 0; // Mark as unhealthy during e-stop
-    }
-    else if (command == "SYS_ON") {
-      systemHealthy = 1;
-    }
+void loop()
+{
+  // 1. Read Raw Values
+  int solarValue = analogRead(solarPin);
+  int fuelValue = analogRead(fuelCellPin);
+  int batteryValue = analogRead(batteryPin);
+
+  // 2. Calculate Voltages
+  solarVoltage = (solarValue * 5.0 / 1023.0) * calibrationFactor;
+  fuelVoltage = (fuelValue * 5.0 / 1023.0) * calibrationFactor;
+  batteryVoltage = (batteryValue * 5.0 / 1023.0) * calibrationFactor;
+
+  // 3. Print Text for Arduino Serial Monitor
+  Serial.print("Solar Voltage: ");
+  Serial.print(solarVoltage);
+  Serial.println(" V");
+
+  Serial.print("Fuel Cell Voltage: ");
+  Serial.print(fuelVoltage);
+  Serial.println(" V");
+
+  Serial.print("Battery Voltage: ");
+  Serial.print(batteryVoltage);
+  Serial.println(" V");
+
+  float totalVoltage = solarVoltage + fuelVoltage;
+
+  // 4. Control Logic
+  if (batteryVoltage > batteryLow)
+  {
+    digitalWrite(relayPin, HIGH);
+    Serial.println("LOAD CONNECTED");
+  }
+  else
+  {
+    digitalWrite(relayPin, LOW);
+    Serial.println("LOAD DISCONNECTED");
   }
 
-  // 2. Read Sensors and Send Data periodically
-  if (millis() - lastSendTime >= sendInterval) {
-    lastSendTime = millis();
-    
-    /* 
-       VOLTAGE CALIBRATION:
-       Multiplier = (R1 + R2) / R2
-       Example: R1=10k, R2=2k -> Multiplier = 12k / 2k = 6.0
-       Adjust the numbers below to match your actual resistors.
-    */
-    int batRaw = analogRead(BATT_VOLT_PIN);
-    batteryVoltage = (batRaw * 5.0 / 1023.0) * 6.0; // Optimized for 30V max range
-    
-    int solRaw = analogRead(SOLAR_VOLT_PIN);
-    solarVoltage = (solRaw * 5.0 / 1023.0) * 6.0;
-
-    int loadVRaw = analogRead(LOAD_VOLT_PIN);
-    loadVoltage = (loadVRaw * 5.0 / 1023.0) * 6.0;
-
-    /*
-       CURRENT CALIBRATION:
-       Assumes ACS712-05B (Sensitivity: 185mV/A, Offset: 2.5V)
-    */
-    int loadIRaw = analogRead(LOAD_CURR_PIN);
-    float vOut = loadIRaw * 5.0 / 1023.0;
-    loadCurrent = (vOut - 2.5) / 0.185; 
-    if (loadCurrent < 0.05) loadCurrent = 0; // Filter noise
-    
-    // Calculate battery percentage (11V to 13.5V range)
-    float pct = ((batteryVoltage - 11.0) / (2.5)) * 100.0;
-    batteryPct = constrain((int)pct, 0, 100);
-    
-    if (batteryVoltage < 11.5 && systemHealthy == 1) {
-      systemHealthy = 0; // Low voltage warning
-    } else if (batteryVoltage >= 11.5 && relayState == 1) { // Assume healthy if we turned it on
-      systemHealthy = 1;
-    }
-
-    // 3. Construct JSON and Send
-    // Allocate the JSON document
-    // This size depends on the number of elements in the JSON object.
-    StaticJsonDocument<200> doc;
-    
-    doc["voltage"] = batteryVoltage;
-    doc["solar_voltage"] = solarVoltage;
-    doc["load_voltage"] = loadVoltage;
-    doc["load_current"] = loadCurrent;
-    doc["battery_pct"] = batteryPct;
-    doc["relay"] = relayState;
-    doc["led"] = ledState;
-    doc["system_healthy"] = systemHealthy;
-    doc["power_flow"] = (solarVoltage > 14.0) ? 1 : ((relayState == 1) ? -1 : 0);
-    doc["emergency_stop"] = (systemHealthy == 0 && batteryVoltage > 11.5) ? 1 : 0; 
-    
-    serializeJson(doc, Serial);
-    Serial.println();
+  if (batteryVoltage >= batteryHigh)
+  {
+    Serial.println("CHARGED");
   }
+  else
+  {
+    Serial.println("BATTERY CHARGING");
+  }
+
+  // 5. SMART BRIDGE: Send JSON for Web Dashboard & Mobile App
+  // Mapping: batteryVoltage -> voltage, solarVoltage -> solar_voltage, fuelVoltage -> load_voltage
+  Serial.print("{");
+  Serial.print("\"voltage\":"); Serial.print(batteryVoltage);
+  Serial.print(",\"solar_voltage\":"); Serial.print(solarVoltage);
+  Serial.print(",\"load_voltage\":"); Serial.print(fuelVoltage);
+  Serial.print(",\"load_current\":"); Serial.print(totalVoltage); // Showing Total as Current for visibility
+  Serial.print(",\"relay\":"); Serial.print(digitalRead(relayPin));
+  Serial.print(",\"system_healthy\":1");
+  Serial.println("}");
+
+  delay(2000);
 }

@@ -71,11 +71,19 @@ def init_serial():
     if serial is None: return False
     try:
         ports = serial.tools.list_ports.comports()
+        if not ports: return False
+        
+        # 1. Try to find by name first
         for port in ports:
-            if 'Arduino' in port.description or 'CH340' in port.description or 'USB' in port.description:
+            if any(keyword in port.description for keyword in ['Arduino', 'CH340', 'USB', 'Serial']):
                 serial_port = serial.Serial(port.device, 9600, timeout=1)
                 system_data["mock_mode"] = False
                 return True
+        
+        # 2. Fallback: Just try the first available port
+        serial_port = serial.Serial(ports[0].device, 9600, timeout=1)
+        system_data["mock_mode"] = False
+        return True
     except:
         pass
     return False

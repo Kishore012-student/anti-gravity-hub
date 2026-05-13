@@ -208,10 +208,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       mainAxisSpacing: 16,
       childAspectRatio: 1.5,
       children: [
-        _buildStatCard("Battery", "${data['voltage']}V", Icons.battery_charging_full, Colors.blue),
+        _buildStatCard("Storage", "${data['voltage']}V", Icons.battery_charging_full, Colors.blue),
         _buildStatCard("Solar", "${data['solar_voltage']}V", Icons.solar_power, Colors.orange),
-        _buildStatCard("Load", "${data['load_voltage']}V", Icons.power, Colors.cyan),
-        _buildStatCard("Current", "${data['load_current']}A", Icons.speed, Colors.redAccent),
+        _buildStatCard("Fuel Cell", "${data['load_voltage']}V", Icons.science, Colors.cyan),
+        _buildStatCard("Total Gen", "${data['load_current']}V", Icons.bolt, Colors.redAccent),
       ],
     );
   }
